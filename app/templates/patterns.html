@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Association Mining — Credit Card Analytics{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 class="fw-bold mb-1"><i class="bi bi-diagram-3-fill text-primary me-2"></i> Association Rule Mining & Pattern Discovery</h2>
+    <p class="text-muted">Uncovering frequent co-occurring transaction behaviors leading to credit card fraud via <strong>Apriori</strong> and <strong>FP-Growth</strong> algorithms.</p>
+</div>
+
+<!-- Benchmark Statistics -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3 col-sm-6">
+        <div class="card kpi-card p-3">
+            <span class="kpi-label">Apriori Runtime</span>
+            <div class="kpi-value text-danger">{{ benchmark.apriori_time }}</div>
+            <small class="text-muted">Candidate generation phase</small>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="card kpi-card p-3">
+            <span class="kpi-label">FP-Growth Runtime</span>
+            <div class="kpi-value text-success">{{ benchmark.fpgrowth_time }}</div>
+            <small class="text-muted">Tree-based pattern growth</small>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="card kpi-card p-3">
+            <span class="kpi-label">Rules Discovered</span>
+            <div class="kpi-value text-primary">{{ benchmark.total_rules }}</div>
+            <small class="text-muted">Min lift threshold &ge; 1.2</small>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="card kpi-card p-3">
+            <span class="kpi-label">Highest Observed Lift</span>
+            <div class="kpi-value text-warning">{{ benchmark.max_lift }}x</div>
+            <small class="text-muted">grocery_pos + Late_Night</small>
+        </div>
+    </div>
+</div>
+
+<!-- Visual comparison row -->
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="card chart-card">
+            <div class="card-header bg-white fw-bold py-3">
+                <i class="bi bi-stopwatch me-2 text-primary"></i> Algorithm Runtime Benchmark: Apriori vs FP-Growth
+            </div>
+            <img src="{{ url_for('static', filename='graphs/12_apriori_vs_fpgrowth_runtime.png') }}" alt="Runtime Comparison">
+            <div class="card-body">
+                <p class="card-text text-muted small">
+                    Both algorithms isolate identical frequent itemsets, but FP-Growth compresses transactions into an FP-tree structure, avoiding candidate combinations.
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card chart-card">
+            <div class="card-header bg-white fw-bold py-3">
+                <i class="bi bi-scatter-chart me-2 text-primary"></i> Rule Distribution: Support vs Confidence vs Lift
+            </div>
+            <img src="{{ url_for('static', filename='graphs/13_association_rules_scatter.png') }}" alt="Rule Scatter">
+            <div class="card-body">
+                <p class="card-text text-muted small">
+                    Rules targeting fraud demonstrate lifts exceeding <strong>8.7x</strong>, providing valuable rule-based heuristics that complement machine learning predictions.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Discovered Fraud Rules Table -->
+<div class="card shadow-sm border-0 rounded-3 mb-4">
+    <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="fw-bold mb-0"><i class="bi bi-lightning-fill text-warning me-1"></i> High-Confidence Rules Leading to Fraud</h5>
+            <small class="text-muted">Top discovered association rules where Consequent = {fraud=Yes}</small>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Rule Antecedents (Conditions)</th>
+                        <th>Consequent</th>
+                        <th>Support</th>
+                        <th>Confidence</th>
+                        <th>Lift</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in rules %}
+                    <tr>
+                        <td class="ps-4">
+                            <code>{{ r.antecedents_str }}</code>
+                        </td>
+                        <td>
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle">fraud=Yes</span>
+                        </td>
+                        <td>{{ (r.support * 100)|round(2) }}%</td>
+                        <td>{{ (r.confidence * 100)|round(2) }}%</td>
+                        <td>
+                            <span class="badge bg-warning text-dark fw-bold">{{ r.lift|round(2) }}x</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

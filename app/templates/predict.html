@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Fraud Prediction — Credit Card Analytics{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 class="fw-bold mb-1"><i class="bi bi-shield-shaded text-primary me-2"></i> Real-Time Transaction Fraud Predictor</h2>
+    <p class="text-muted">Simulate card transactions through our trained Random Forest Classifier to evaluate real-time fraud probability.</p>
+</div>
+
+<div class="row g-4">
+    <!-- Prediction Form -->
+    <div class="col-lg-7">
+        <div class="card shadow-sm border-0 rounded-3 p-4 bg-white">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0">Transaction Parameters</h5>
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-outline-danger" onclick="fillHighRisk()">
+                        <i class="bi bi-radioactive me-1"></i> Preset: High Risk
+                    </button>
+                    <button type="button" class="btn btn-outline-success" onclick="fillNormal()">
+                        <i class="bi bi-cup-hot me-1"></i> Preset: Normal
+                    </button>
+                </div>
+            </div>
+
+            <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-3">
+                <i class="bi bi-shield-lock-fill text-info fs-5"></i>
+                <span><strong>Privacy Preserving:</strong> In accordance with security best practices, raw card numbers, CVVs, and cardholder names are excluded.</span>
+            </div>
+
+            <form method="POST" action="{{ url_for('predict') }}" id="predictForm">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold small">Transaction Amount ($ USD)</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" step="0.01" class="form-control" name="amt" id="amt" value="750.00" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold small">Merchant Category</label>
+                        <select class="form-select" name="category" id="category" required>
+                            {% for c in categories %}
+                            <option value="{{ c }}" {% if c == 'grocery_pos' %}selected{% endif %}>{{ c }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold small">Cardholder Gender</label>
+                        <select class="form-select" name="gender" id="gender">
+                            <option value="M" selected>Male (M)</option>
+                            <option value="F">Female (F)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold small">Transaction Hour (0 - 23)</label>
+                        <input type="number" min="0" max="23" class="form-control" name="transaction_hour" id="transaction_hour" value="23" required>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold small">Day of the Week</label>
+                        <select class="form-select" name="day_of_week" id="day_of_week">
+                            <option value="0">Monday</option>
+                            <option value="1">Tuesday</option>
+                            <option value="2">Wednesday</option>
+                            <option value="3">Thursday</option>
+                            <option value="4">Friday</option>
+                            <option value="5" selected>Saturday (Weekend)</option>
+                            <option value="6">Sunday (Weekend)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold small">Cardholder Age (Years)</label>
+                        <input type="number" min="18" max="100" class="form-control" name="customer_age" id="customer_age" value="34" required>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold small">Merchant Distance (km)</label>
+                        <input type="number" step="0.1" class="form-control" name="merchant_distance" id="merchant_distance" value="115.0" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold small">City Population</label>
+                        <input type="number" class="form-control" name="city_pop" id="city_pop" value="85000" required>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm">
+                        <i class="bi bi-shield-check me-1"></i> Analyze & Predict Risk
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Prediction Verdict Result Panel -->
+    <div class="col-lg-5">
+        <div class="card shadow-sm border-0 rounded-3 p-4 bg-white h-100">
+            <h5 class="fw-bold mb-3">Detection Verdict</h5>
+
+            {% if result %}
+                {% if result.error %}
+                <div class="alert alert-danger">
+                    <strong>Error:</strong> {{ result.error }}
+                </div>
+                {% else %}
+                <div class="text-center py-3">
+                    {% if result.is_fraud %}
+                    <div class="p-3 bg-danger-subtle border border-danger rounded-3 mb-3">
+                        <i class="bi bi-exclamation-octagon-fill text-danger" style="font-size: 3rem;"></i>
+                        <h4 class="fw-bold text-danger mt-2 mb-1">HIGH RISK FRAUD ALERT</h4>
+                        <p class="mb-0 text-danger-emphasis small">The model predicts anomalous transactional behavior consistent with fraudulent card activity.</p>
+                    </div>
+                    {% else %}
+                    <div class="p-3 bg-success-subtle border border-success rounded-3 mb-3">
+                        <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+                        <h4 class="fw-bold text-success mt-2 mb-1">GENUINE TRANSACTION</h4>
+                        <p class="mb-0 text-success-emphasis small">The transaction matches standard cardholder purchasing patterns.</p>
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="small text-muted fw-semibold">Fraud Probability Score</label>
+                        <div class="progress" style="height: 22px;">
+                            <div class="progress-bar {% if result.is_fraud %}bg-danger{% else %}bg-success{% endif %} progress-bar-striped progress-bar-animated"
+                                 role="progressbar"
+                                 style="width: {{ result.probability }}%;">
+                                {{ result.probability }}%
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if result.risk_factors %}
+                    <div class="text-start mt-3 p-3 bg-light rounded-3">
+                        <h6 class="fw-bold text-dark mb-2"><i class="bi bi-flag-fill text-danger me-1"></i> Triggered Risk Factors:</h6>
+                        <ul class="mb-0 small text-secondary ps-3">
+                            {% for rf in result.risk_factors %}
+                            <li>{{ rf }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            {% else %}
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-cpu fs-1 text-secondary opacity-50"></i>
+                <h6 class="mt-3 fw-bold">Awaiting Transaction Input</h6>
+                <p class="small">Fill out the parameters on the left or click one of the quick presets to test real-time fraud inference.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function fillHighRisk() {
+    document.getElementById("amt").value = "890.50";
+    document.getElementById("category").value = "grocery_pos";
+    document.getElementById("transaction_hour").value = "23";
+    document.getElementById("merchant_distance").value = "145";
+    document.getElementById("day_of_week").value = "5";
+}
+
+function fillNormal() {
+    document.getElementById("amt").value = "24.50";
+    document.getElementById("category").value = "food_dining";
+    document.getElementById("transaction_hour").value = "13";
+    document.getElementById("merchant_distance").value = "8.2";
+    document.getElementById("day_of_week").value = "2";
+}
+</script>
+{% endblock %}
